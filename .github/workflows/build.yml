@@ -1,1 +1,58 @@
+name: Build Official OSCam-EMU SF8008
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM Toolchain & Build Tools
+        run: |
+          apt-get update
+          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget unzip libssl-dev libpcsclite-dev libusb-1.0-0-dev
+
+      - name: Download & Extract Official OSCam-EMU Source
+        run: |
+          wget -q https://github.com/oscam-emu/oscam-emu/archive/refs/heads/master.zip -O oscam-emu-master.zip
+          unzip -q oscam-emu-master.zip
+          cp -rf oscam-emu-master/* .
+
+      - name: Build Static OpenSSL for ARMhf
+        run: |
+          wget -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1w.tar.gz
+          tar -xzf OpenSSL_1_1_1w.tar.gz
+          cd openssl-OpenSSL_1_1_1w
+          ./Configure linux-armv4 -march=armv7-a -mfpu=neon -mfloat-abi=hard --cross-compile-prefix=arm-linux-gnueabihf- --prefix=/tmp/openssl-armhf no-async no-shared
+          make -j$(nproc)
+          make install_sw
+
+      - name: Compile Official OSCam-EMU Binary
+        run: |
+          make clean || true
+          make CROSS_DIR=/usr/bin/ \
+               CROSS=arm-linux-gnueabihf- \
+               USE_SSL=1 \
+               USE_LIBCRYPTO=1 \
+               EXTRA_FLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard -O2 -std=gnu99 -fcommon -Wno-error -I/tmp/openssl-armhf/include" \
+               EXTRA_LIBS="-L/tmp/openssl-armhf/lib -lssl -lcrypto -lpthread -ldl -lrt" \
+               CONF_DIR=/etc/tuxbox/config/oscam-emu
+
+      - name: Prepare Binary Artifact
+        run: |
+          mkdir -p bin_out
+          find Distribution/ . -name "oscam*" -type f -executable -exec cp {} bin_out/oscam-sf8008-openatv8 \;
+          ls -lh bin_out/
+
+      - name: Upload Compiled Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscam-sf8008-openatv8-emu
+          path: bin_out/oscam-sf8008-openatv8
 
