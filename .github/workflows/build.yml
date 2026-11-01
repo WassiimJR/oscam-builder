@@ -1,4 +1,4 @@
-name: Build Official OSCam-EMU SF8008
+name: Build Official GFTO OSCam SF8008
 
 on:
   push:
@@ -13,15 +13,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install ARM Toolchain & Build Tools
+      - name: Install ARM Cross-Compiler & Tools
         run: |
           apt-get update
-          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget unzip libssl-dev libpcsclite-dev libusb-1.0-0-dev
+          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget git libssl-dev libpcsclite-dev libusb-1.0-0-dev
 
-      - name: Download & Extract Official OSCam-EMU Source
+      - name: Clone GFTO OSCam Source
         run: |
-          wget -q https://github.com/oscam-emu/oscam-emu/archive/refs/heads/master.zip -O oscam-emu-master.zip
-          unzip -q oscam-emu-master.zip
+          git clone https://github.com/gfto/oscam.git oscam-src
+          cp -rf oscam-src/* .
 
       - name: Build Static OpenSSL for ARMhf
         run: |
@@ -32,9 +32,8 @@ jobs:
           make -j$(nproc)
           make install_sw
 
-      - name: Compile Official OSCam-EMU Binary
+      - name: Compile Official OSCam Binary
         run: |
-          cd oscam-emu-master
           make clean || true
           make CROSS_DIR=/usr/bin/ \
                CROSS=arm-linux-gnueabihf- \
@@ -42,16 +41,16 @@ jobs:
                USE_LIBCRYPTO=1 \
                EXTRA_FLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard -O2 -std=gnu99 -fcommon -Wno-error -I/tmp/openssl-armhf/include" \
                EXTRA_LIBS="-L/tmp/openssl-armhf/lib -lssl -lcrypto -lpthread -ldl -lrt" \
-               CONF_DIR=/etc/tuxbox/config/oscam-emu
+               CONF_DIR=/etc/tuxbox/config/oscam
 
       - name: Prepare Binary Artifact
         run: |
           mkdir -p bin_out
-          find oscam-emu-master/Distribution/ oscam-emu-master/ -name "oscam*" -type f -executable -exec cp {} bin_out/oscam-sf8008-openatv8 \;
+          find Distribution/ . -maxdepth 2 -name "oscam*" -type f -executable -exec cp {} bin_out/oscam-sf8008-openatv8 \;
           ls -lh bin_out/
 
-      - name: Upload Compiled Binary Artifact
+      - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: oscam-sf8008-openatv8-emu
+          name: oscam-sf8008-openatv8-gfto
           path: bin_out/oscam-sf8008-openatv8
