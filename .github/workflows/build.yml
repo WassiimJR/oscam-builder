@@ -1,4 +1,4 @@
-name: Build Official GFTO OSCam SF8008
+name: Build Official GFTO OSCam SF8008 (NO-SSL Mode)
 
 on:
   push:
@@ -16,31 +16,24 @@ jobs:
       - name: Install ARM Cross-Compiler & Tools
         run: |
           apt-get update
-          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget git libssl-dev libpcsclite-dev libusb-1.0-0-dev
+          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget git libpcsclite-dev libusb-1.0-0-dev
 
       - name: Clone GFTO OSCam Source
         run: |
           git clone https://github.com/gfto/oscam.git oscam-src
           cp -rf oscam-src/* .
 
-      - name: Build Static OpenSSL for ARMhf
-        run: |
-          wget -q https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1w.tar.gz
-          tar -xzf OpenSSL_1_1_1w.tar.gz
-          cd openssl-OpenSSL_1_1_1w
-          ./Configure linux-armv4 -march=armv7-a -mfpu=neon -mfloat-abi=hard --cross-compile-prefix=arm-linux-gnueabihf- --prefix=/tmp/openssl-armhf no-async no-shared
-          make -j$(nproc)
-          make install_sw
-
-      - name: Compile Official OSCam Binary
+      - name: Compile Official OSCam Binary (NO-SSL)
         run: |
           make clean || true
+          chmod +x config.sh || true
+          ./config.sh --disable READER_CRYPTOWORKS WITH_SSL WITH_LIBCRYPTO || true
           make CROSS_DIR=/usr/bin/ \
                CROSS=arm-linux-gnueabihf- \
-               USE_SSL=1 \
-               USE_LIBCRYPTO=1 \
-               EXTRA_FLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard -O2 -std=gnu99 -fcommon -Wno-error -I/tmp/openssl-armhf/include" \
-               EXTRA_LIBS="-L/tmp/openssl-armhf/lib -lssl -lcrypto -lpthread -ldl -lrt" \
+               USE_SSL=0 \
+               USE_LIBCRYPTO=0 \
+               EXTRA_FLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard -O2 -std=gnu99 -fcommon -Wno-error" \
+               EXTRA_LIBS="-lpthread -ldl -lrt" \
                CONF_DIR=/etc/tuxbox/config/oscam
 
       - name: Prepare Binary Artifact
@@ -52,5 +45,5 @@ jobs:
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: oscam-sf8008-openatv8-gfto
+          name: oscam-sf8008-openatv8-nossl
           path: bin_out/oscam-sf8008-openatv8
