@@ -1,4 +1,4 @@
-name: Build Official GFTO OSCam SF8008 (NO-SSL Mode)
+name: Build Official GFTO OSCam SF8008
 
 on:
   push:
@@ -13,27 +13,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install ARM Cross-Compiler & Tools
+      - name: Install ARM Cross-Compiler & OpenSSL Headers
         run: |
           apt-get update
-          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget git libpcsclite-dev libusb-1.0-0-dev
+          apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf build-essential wget git libssl-dev libpcsclite-dev libusb-1.0-0-dev
 
       - name: Clone GFTO OSCam Source
         run: |
           git clone https://github.com/gfto/oscam.git oscam-src
           cp -rf oscam-src/* .
 
-      - name: Compile Official OSCam Binary (NO-SSL)
+      - name: Compile Official OSCam Binary
         run: |
           make clean || true
           chmod +x config.sh || true
-          ./config.sh --disable READER_CRYPTOWORKS WITH_SSL WITH_LIBCRYPTO || true
+          ./config.sh --disable READER_CRYPTOWORKS || true
           make CROSS_DIR=/usr/bin/ \
                CROSS=arm-linux-gnueabihf- \
-               USE_SSL=0 \
-               USE_LIBCRYPTO=0 \
+               USE_SSL=1 \
+               USE_LIBCRYPTO=1 \
                EXTRA_FLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard -O2 -std=gnu99 -fcommon -Wno-error" \
-               EXTRA_LIBS="-lpthread -ldl -lrt" \
+               EXTRA_LIBS="-lssl -lcrypto -lpthread -ldl -lrt" \
                CONF_DIR=/etc/tuxbox/config/oscam
 
       - name: Prepare Binary Artifact
@@ -45,5 +45,5 @@ jobs:
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: oscam-sf8008-openatv8-nossl
+          name: oscam-sf8008-openatv8-gfto
           path: bin_out/oscam-sf8008-openatv8
