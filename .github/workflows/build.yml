@@ -22,7 +22,6 @@ jobs:
         run: |
           wget -q https://github.com/oscam-emu/oscam-emu/archive/refs/heads/master.zip -O oscam-emu-master.zip
           unzip -q oscam-emu-master.zip
-          cp -rf oscam-emu-master/* .
 
       - name: Build Static OpenSSL for ARMhf
         run: |
@@ -35,6 +34,7 @@ jobs:
 
       - name: Compile Official OSCam-EMU Binary
         run: |
+          cd oscam-emu-master
           make clean || true
           make CROSS_DIR=/usr/bin/ \
                CROSS=arm-linux-gnueabihf- \
@@ -47,7 +47,7 @@ jobs:
       - name: Prepare Binary Artifact
         run: |
           mkdir -p bin_out
-          find Distribution/ . -name "oscam*" -type f -executable -exec cp {} bin_out/oscam-sf8008-openatv8 \;
+          find oscam-emu-master/Distribution/ oscam-emu-master/ -name "oscam*" -type f -executable -exec cp {} bin_out/oscam-sf8008-openatv8 \;
           ls -lh bin_out/
 
       - name: Upload Compiled Binary Artifact
@@ -55,4 +55,3 @@ jobs:
         with:
           name: oscam-sf8008-openatv8-emu
           path: bin_out/oscam-sf8008-openatv8
-
